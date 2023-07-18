@@ -224,9 +224,9 @@ class _WrappedReferencingError(_RefResolutionError, _Unresolvable):
 
     def __hash__(self):
         try:
-            # We expect this to fail, since referencing.exceptions.Unresolvable
-            # is unhashable. But it will avoids subtle and confusing breakage
-            # in case a later version of the referencing library changes that.
+            # This way fails as long as referencing.exceptions.Unresolvable is
+            # unhashable, but it avoids subtle and confusing breakage if that
+            # exception is later made hashable.
             return hash(self._wrapped)
         except TypeError:
             return hash(astuple(self._wrapped))
