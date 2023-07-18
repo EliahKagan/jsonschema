@@ -11,7 +11,7 @@ import heapq
 import itertools
 import warnings
 
-from attrs import define
+from attrs import astuple, define
 from referencing.exceptions import Unresolvable as _Unresolvable
 
 from jsonschema import _utils
@@ -193,7 +193,7 @@ class SchemaError(_Error):
     _word_for_instance_in_error_message = "schema"
 
 
-@define(slots=False)
+@define(slots=False, frozen=True, auto_exc=False)
 class _RefResolutionError(Exception):
     """
     A ref could not be resolved.
@@ -206,11 +206,6 @@ class _RefResolutionError(Exception):
     )
 
     _cause: Exception
-
-    def __eq__(self, other):
-        if self.__class__ is not other.__class__:
-            return NotImplemented
-        return self._cause == other._cause
 
     def __str__(self):
         return str(self._cause)
@@ -226,6 +221,15 @@ class _WrappedReferencingError(_RefResolutionError, _Unresolvable):
         elif other.__class__ is self._wrapped.__class__:
             return self._wrapped == other
         return NotImplemented
+
+    def __hash__(self):
+        try:
+            # We expect this to fail, since referencing.exceptions.Unresolvable
+            # is unhashable. But it will avoids subtle and confusing breakage
+            # in case a later version of the referencing library changes that.
+            return hash(self._wrapped)
+        except TypeError:
+            return hash(astuple(self._wrapped))
 
     def __getattr__(self, attr):
         return getattr(self._wrapped, attr)

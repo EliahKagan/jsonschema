@@ -1,5 +1,7 @@
-from unittest import TestCase
+from unittest import TestCase, skipIf
 import textwrap
+
+from referencing.exceptions import Unresolvable as _Unresolvable
 
 from jsonschema import exceptions
 from jsonschema.validators import _LATEST_VERSION
@@ -595,7 +597,71 @@ class TestErrorInitReprStr(TestCase):
         self.assertIn(repr(instance), str(error))
 
 
-class TestHashable(TestCase):
-    def test_hashable(self):
+class TestEqHash(TestCase):
+    def test_hashable_public(self):
+        """
+        The non-deprecated public exceptions hash straghtforwardly, because
+        they use reference-based equality comparisons.
+        """
         set([exceptions.ValidationError("")])
         set([exceptions.SchemaError("")])
+        set([exceptions.UndefinedTypeCheck("foobar")])
+        set([exceptions.UnknownType("some unknown type", 12, False)])
+        set([exceptions.FormatError("")])
+
+    def test_hashable_private(self):
+        """
+        The private exceptions are also hashable, in terms of their values.
+        """
+        set([exceptions._RefResolutionError(Exception(""))])
+        set([exceptions._WrappedReferencingError(_Unresolvable(""))])
+
+    def test_ref_resolution_error_equal(self):
+        shared_cause = Exception("")
+        error1 = exceptions._RefResolutionError(shared_cause)
+        error2 = exceptions._RefResolutionError(shared_cause)
+        self.assertEqual(error1, error2)
+
+    def test_ref_resolution_error_equal_hash(self):
+        shared_cause = Exception("")
+        error1 = exceptions._RefResolutionError(shared_cause)
+        error2 = exceptions._RefResolutionError(shared_cause)
+        self.assertEqual(hash(error1), hash(error2))
+
+    def test_ref_resolution_error_unequal(self):
+        # Exception uses reference-based equality, so the "causes" are unequal.
+        error1 = exceptions._RefResolutionError(Exception(""))
+        error2 = exceptions._RefResolutionError(Exception(""))
+        self.assertNotEqual(error1, error2)
+
+    def test_wrapped_referencing_error_equal_wrappers(self):
+        wrapper1 = exceptions._WrappedReferencingError(_Unresolvable("foobar"))
+        wrapper2 = exceptions._WrappedReferencingError(_Unresolvable("foobar"))
+        self.assertEqual(wrapper1, wrapper2)
+
+    def test_wrapped_referencing_error_equal_wrappers_hash(self):
+        wrapper1 = exceptions._WrappedReferencingError(_Unresolvable("foobar"))
+        wrapper2 = exceptions._WrappedReferencingError(_Unresolvable("foobar"))
+        self.assertEqual(hash(wrapper1), hash(wrapper2))
+
+    def test_wrapped_referencing_error_unequal_wrappers(self):
+        wrapper1 = exceptions._WrappedReferencingError(_Unresolvable("foo"))
+        wrapper2 = exceptions._WrappedReferencingError(_Unresolvable("bar"))
+        self.assertNotEqual(wrapper1, wrapper2)
+
+    def test_wrapped_reference_error_equal_to_wrapped(self):
+        wrapper = exceptions._WrappedReferencingError(_Unresolvable("foobar"))
+        wrapped = _Unresolvable("foobar")
+        self.assertEqual(wrapper, wrapped)
+
+    @skipIf(_Unresolvable.__hash__ is None,
+            "The referencing.exceptions.Unresolvable class is not hashable.")
+    def test_wrapped_reference_error_equal_to_wrapped_hash(self):
+        wrapper = exceptions._WrappedReferencingError(_Unresolvable("foobar"))
+        wrapped = _Unresolvable("foobar")
+        self.assertEqual(hash(wrapper), hash(wrapped))
+
+    def test_wrapped_reference_error_unequal_to_wrapped(self):
+        wrapper = exceptions._WrappedReferencingError(_Unresolvable("foo"))
+        wrapped = _Unresolvable("bar")
+        self.assertNotEqual(wrapper, wrapped)
