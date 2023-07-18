@@ -11,7 +11,7 @@ import heapq
 import itertools
 import warnings
 
-from attrs import astuple, define
+from attrs import astuple, frozen
 from referencing.exceptions import Unresolvable as _Unresolvable
 
 from jsonschema import _utils
@@ -193,7 +193,7 @@ class SchemaError(_Error):
     _word_for_instance_in_error_message = "schema"
 
 
-@define(slots=False, frozen=True, auto_exc=False)
+@frozen(slots=False, auto_exc=False)
 class _RefResolutionError(Exception):
     """
     A ref could not be resolved.
